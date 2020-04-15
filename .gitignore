@@ -1,6 +1,10 @@
 *.pdf
 *.png
 *.html
+*.css
 *.pyc
+
+score
+
 .vscode/
 .idea/
