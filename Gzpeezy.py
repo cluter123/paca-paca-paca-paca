@@ -16,6 +16,8 @@ from captureAgents import CaptureAgent
 import random, time, util
 from game import Directions
 import game
+from util import PriorityQueue
+
 #################
 # Team creation #
 #################
@@ -144,6 +146,41 @@ class DefaultAgent(CaptureAgent):
       
     self.start = gameState.getAgentPosition(self.index)
 
+  def getClosestEnemy(self, pos, gameState):
+    minEnemy = None
+    mindist = 9999
+    for index in DefaultAgent.enemyPositions.keys():
+      lastLoc = DefaultAgent.enemyPositions[index][-1]
+      enemydist = self.getMazeDistance(pos, lastLoc)
+      if enemydist < mindist:
+        minEnemy = index
+        mindist = enemydist
+    return (minEnemy, mindist)
+      
+  def getSafestFood(self, gameState):
+    foods = self.getFood(gameState)
+    me = gameState.getAgentPosition(self.index)
+    backupFood = None
+    bestFood = None
+    minMeDistance = 9999
+    maxFoeDistance = -1
+    for x in range(0, foods.width):
+      for y in range(0, foods.height):
+        # skip non-food spots
+        if not foods[x][y]:
+          continue
+        closeFoe, foeDistance = self.getClosestEnemy((x, y), gameState)
+        distance = self.getMazeDistance(me, (x, y))
+        if distance < minMeDistance and foeDistance > maxFoeDistance:
+          if distance < foeDistance:
+            bestFood = (x, y)
+          backupFood = (x, y)
+          minMeDistance = distance
+          maxFoeDistance = foeDistance
+    if bestFood == None:
+      bestFood = backupFood
+    return bestFood
+      
   def chooseAction(self, gameState):
     """
     Picks among actions randomly.
@@ -152,6 +189,7 @@ class DefaultAgent(CaptureAgent):
       self.updateEnemyPositions()
     else:
       DefaultAgent.turnCount += 1
+    print "bestFood: ", self.getSafestFood(gameState)
     actions = gameState.getLegalActions(self.index)
 
     '''
@@ -201,18 +239,6 @@ class DefendAgent(DefaultAgent):
     '''
 
     return random.choice(actions)
-
-
-
-
-def getClosestEnemy(pos, gameState, enemyIndex):
-  """Return the (x, y) of the closest enemy to point (X, Y)."""
-  x, y = pos
-  minEnemy = None
-  minLen = 9999
-
-  for index in enemyIndex:
-    
 
   
 def myLegalMoves(x, y, gameState):
