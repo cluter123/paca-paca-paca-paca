@@ -143,7 +143,7 @@ class DefaultAgent(CaptureAgent):
     '''
     for opponent in self.getOpponents(gameState):
       DefaultAgent.enemyPositions[opponent] = [gameState.getInitialAgentPosition(opponent)]
-      
+    print self.getFood(gameState)
     self.start = gameState.getAgentPosition(self.index)
 
   def getClosestEnemy(self, pos, gameState):
@@ -158,29 +158,22 @@ class DefaultAgent(CaptureAgent):
     return (minEnemy, mindist)
       
   def getSafestFood(self, gameState):
+    pq = PriorityQueue()
     foods = self.getFood(gameState)
     me = gameState.getAgentPosition(self.index)
-    backupFood = None
-    bestFood = None
-    minMeDistance = 9999
-    maxFoeDistance = -1
     for x in range(0, foods.width):
       for y in range(0, foods.height):
-        # skip non-food spots
         if not foods[x][y]:
           continue
-        closeFoe, foeDistance = self.getClosestEnemy((x, y), gameState)
-        distance = self.getMazeDistance(me, (x, y))
-        if distance < minMeDistance and foeDistance > maxFoeDistance:
-          if distance < foeDistance:
-            bestFood = (x, y)
-          backupFood = (x, y)
-          minMeDistance = distance
-          maxFoeDistance = foeDistance
-    if bestFood == None:
-      bestFood = backupFood
-    return bestFood
-      
+        _, ghostdist = self.getClosestEnemy((x, y), gameState)
+        medist = self.getMazeDistance((x, y), me)
+        priority = 10000
+        if ghostdist != 0:
+          priority = -(medist + (1.0 / ghostdist))
+        pq.push((x, y), priority)
+    return pq.pop()
+        
+    
   def chooseAction(self, gameState):
     """
     Picks among actions randomly.
