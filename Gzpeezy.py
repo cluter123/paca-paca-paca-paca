@@ -17,6 +17,7 @@ import random, time, util
 from game import Directions
 import game
 from util import PriorityQueue
+from util import manhattanDistance
 
 #################
 # Team creation #
@@ -143,7 +144,6 @@ class DefaultAgent(CaptureAgent):
     '''
     for opponent in self.getOpponents(gameState):
       DefaultAgent.enemyPositions[opponent] = [gameState.getInitialAgentPosition(opponent)]
-    print self.getFood(gameState)
     self.start = gameState.getAgentPosition(self.index)
 
   def getClosestEnemy(self, pos, gameState):
@@ -173,7 +173,27 @@ class DefaultAgent(CaptureAgent):
         pq.push((x, y), priority)
     return pq.pop()
         
-    
+  def aStarSearch(self, food, gameState, heuristic=manhattanDistance):
+    """Search the node that has the lowest combined cost and heuristic first."""
+    pq = PriorityQueue() # Priority Queue
+    expanded = [] # list of explored nodes
+    me = gameState.getAgentPosition(self.index)
+    startState = (me, [])
+    pq.push(startState, heuristic(startState[0], food)) # stores states as tuple of (state, direction), initial node based on heuristic
+    print "food: ", food
+    while not pq.isEmpty():
+      state, directions = pq.pop() # gets state and direction
+      if state[0] == food[0] and state[1] == food[1]: # returns direction if goal state
+        return directions
+      else:
+        if state not in expanded: # checks if state has been expanded 
+          expanded.append(state) # adds state to expanded list
+          tmp = myLegalMovesWithDirection(state, gameState) 
+          for item in tmp: # push all non expanded nodes into priority queue
+            if item[0] not in expanded:
+              pq.push((item[0], directions + [item[1]]), heuristic(item[0], food))
+    return [] #return empty if no goal node found
+
   def chooseAction(self, gameState):
     """
     Picks among actions randomly.
@@ -182,13 +202,15 @@ class DefaultAgent(CaptureAgent):
       self.updateEnemyPositions()
     else:
       DefaultAgent.turnCount += 1
-    print "bestFood: ", self.getSafestFood(gameState)
     actions = gameState.getLegalActions(self.index)
 
     '''
     You should change this in your own agent.
     '''
-    return random.choice(actions)
+    bestfood = self.getSafestFood(gameState)
+    actions = self.aStarSearch(bestfood, gameState)
+    print actions
+    return actions[0]
 
 ###################
 ## Attack Agent  ##
@@ -241,15 +263,17 @@ def myLegalMoves(x, y, gameState):
     if gameState.hasWall(a, b):
       actions.remove((a,b))
   return actions
-
-def myLegalMovesWithDirection(x, y, gameState):
+def myLegalMovesWithDirection(coord, gameState):
+  x, y = coord
   actions = []
-  if gameState.hasWall(x+1, y):
-    actions.append(Directions.EAST)
-  if gameState.hasWall(x-1, y):
-    actions.append(Directions.WEST)
-  if gameState.hasWall(x, y+1):
-    actions.append(Directions.NORTH)
-  if gameState.hasWall(x, y-1):
-    actions.append(Directions.SOUTH)
+  width = gameState.getWalls().width
+  height = gameState.getWalls().height
+  if x+1 < width and gameState.hasWall(x+1, y):
+    actions.append(((x+1, y),Directions.EAST))
+  if x-1 >= 0 and gameState.hasWall(x-1, y):
+    actions.append(((x-1, y), Directions.WEST))
+  if y+1 < height and gameState.hasWall(x, y+1):
+    actions.append(((x, y+1), Directions.NORTH))
+  if y-1 >= 0 and gameState.hasWall(x, y-1):
+    actions.append(((x, y-1), Directions.SOUTH))
   return actions
