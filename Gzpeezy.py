@@ -160,27 +160,19 @@ class DefaultAgent(CaptureAgent):
   def getSafestFood(self, gameState):
     foods = self.getFood(gameState)
     me = gameState.getAgentPosition(self.index)
-    backupFood = None
-    bestFood = None
-    minMeDistance = 9999
-    maxFoeDistance = -1
+    pq = PriorityQueue()
     for x in range(0, foods.width):
       for y in range(0, foods.height):
-        # skip non-food spots
-        if not foods[x][y]:
-          continue
-        closeFoe, foeDistance = self.getClosestEnemy((x, y), gameState)
-        distance = self.getMazeDistance(me, (x, y))
-        if distance < minMeDistance and foeDistance > maxFoeDistance:
-          if distance < foeDistance:
-            bestFood = (x, y)
-          backupFood = (x, y)
-          minMeDistance = distance
-          maxFoeDistance = foeDistance
-    if bestFood == None:
-      bestFood = backupFood
-    return bestFood
-      
+        if foods[x][y]:
+          pacmanDist = self.getMazeDistance(me, (x,y))
+          closeEnemy, enemyDist = self.getClosestEnemy((x,y), gameState)
+          value = float(pacmanDist)
+          if enemyDist > 0:
+            value += float(1)/enemyDist
+          value *= -1
+          pq.push((x,y), value)
+    return pq.pop()
+        
   def chooseAction(self, gameState):
     """
     Picks among actions randomly.
@@ -249,3 +241,22 @@ def myLegalMoves(x, y, gameState):
       actions.remove((a,b))
   return actions
   
+def aStarSearch(problem, heuristic=nullHeuristic):
+    """Search the node that has the lowest combined cost and heuristic first."""
+    "*** YOUR CODE HERE ***"
+    pq = util.PriorityQueue() # Priority Queue
+    expanded = [] # list of explored nodes
+    pq.push((problem.getStartState(), []), heuristic(problem.getStartState(), problem)) # stores states as tuple of (state, direction), initial node based on heuristic
+
+    while(not pq.isEmpty()):
+        state, directions = pq.pop() # gets state and direction
+        if problem.isGoalState(state): # returns direction if goal state
+            return directions
+        else:
+            if state not in expanded: # checks if state has been expanded 
+                expanded.append(state) # adds state to expanded list
+                tmp = problem.getSuccessors(state) 
+                for item in tmp: # push all non expanded nodes into priority queue
+                    if item[0] not in expanded: 
+                        pq.push((item[0], directions + [item[1]]), problem.getCostOfActions(directions + [item[1]]) + heuristic(item[0], problem)) # cost of actions + heuristic function determines f
+    return [] #return empty if no goal node found
