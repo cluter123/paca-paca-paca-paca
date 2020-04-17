@@ -100,7 +100,7 @@ class DefaultAgent(CaptureAgent):
   # dictionary of two items (enemy1 & enemy 2) which each contain a list of tuples (corrdinates)
   enemyPositions = {}
   turnCount = 0 
-  
+
   def updateEnemyPositions(self):
     """"""
     DefaultAgent.turnCount += 1
@@ -142,6 +142,7 @@ class DefaultAgent(CaptureAgent):
     '''
     Your initialization code goes here, if you need any.
     '''
+    self.pelletCount = 0
     for opponent in self.getOpponents(gameState):
       DefaultAgent.enemyPositions[opponent] = [gameState.getInitialAgentPosition(opponent)]
     self.start = gameState.getAgentPosition(self.index)
@@ -168,9 +169,26 @@ class DefaultAgent(CaptureAgent):
         _, ghostdist = self.getClosestEnemy((x, y), gameState)
         medist = self.getMazeDistance((x, y), me)
         priority = 10000
-        if ghostdist != 0:
-          priority = -(medist + (1.0 / ghostdist))
+        if medist != 0:
+          priority = -(ghostdist * 1 + (1.0 / medist) * 5)
         pq.push((x, y), priority)
+    return pq.pop()
+        
+  def getSafestHome(self, gameState):
+    column = gameState.getWalls().width / 2
+    height = gameState.getWalls().height
+    pq = PriorityQueue()
+    me = gameState.getAgentPosition(self.index)
+    for y in range(0, height):
+      pos = (column, y)
+      if not gameState.hasWall(column, y):
+        priority = 10000
+        _, ghostdist = self.getClosestEnemy((column, y), gameState)
+        medist = self.getMazeDistance((column, y), me)
+        priority = 10000
+        if medist != 0:
+          priority = (ghostdist * 10 + (1.0 / medist) * 1)
+        pq.push((column, y), priority)
     return pq.pop()
         
   def aStarSearch(self, food, gameState, heuristic=manhattanDistance):
@@ -180,7 +198,6 @@ class DefaultAgent(CaptureAgent):
     me = gameState.getAgentPosition(self.index)
     startState = (me, [])
     pq.push(startState, heuristic(startState[0], food)) # stores states as tuple of (state, direction), initial node based on heuristic
-    print "food: ", food
     while not pq.isEmpty():
       state, directions = pq.pop() # gets state and direction
       if state[0] == food[0] and state[1] == food[1]: # returns direction if goal state
@@ -195,23 +212,36 @@ class DefaultAgent(CaptureAgent):
     return [] #return empty if no goal node found
 
   def chooseAction(self, gameState):
-    """
-    Picks among actions randomly.
-    """
     if (DefaultAgent.turnCount % 2) == 0:
       self.updateEnemyPositions()
     else:
       DefaultAgent.turnCount += 1
-    actions = gameState.getLegalActions(self.index)
-
-    '''
-    You should change this in your own agent.
-    '''
-    bestfood = self.getSafestFood(gameState)
-    actions = self.aStarSearch(bestfood, gameState)
-    print actions
-    return actions[0]
-
+    me = gameState.getAgentPosition(self.index)
+    if gameState.getInitialAgentPosition(self.index) == me:
+      self.pelletCount = 0
+    # tactions = gameState.getLegalActions(self.index)
+    if self.pelletCount >= 3:
+      # go home
+      column = gameState.getWalls().width / 2
+      bestHome = self.getSafestHome(gameState)
+      actions = self.aStarSearch(bestHome, gameState)
+      action = actions[0]
+      nx, ny = nextPosition(me, action)
+      if nx <= column:
+        self.pelletCount = 0
+        print "count: 0"
+      return action
+    else:
+      # go find food
+      bestFood = self.getSafestFood(gameState)
+      actions = self.aStarSearch(bestFood, gameState)
+      action = actions[0]
+      nx, ny = nextPosition(me, action)
+      if gameState.hasFood(nx, ny):
+        self.pelletCount += 1
+        print "count: ", self.pelletCount
+      return actions[0]
+  
 ###################
 ## Attack Agent  ##
 ###################
@@ -268,12 +298,23 @@ def myLegalMovesWithDirection(coord, gameState):
   actions = []
   width = gameState.getWalls().width
   height = gameState.getWalls().height
-  if x+1 < width and gameState.hasWall(x+1, y):
+  if x+1 < width and not gameState.hasWall(x+1, y):
     actions.append(((x+1, y),Directions.EAST))
-  if x-1 >= 0 and gameState.hasWall(x-1, y):
+  if x-1 >= 0 and not gameState.hasWall(x-1, y):
     actions.append(((x-1, y), Directions.WEST))
-  if y+1 < height and gameState.hasWall(x, y+1):
+  if y+1 < height and not gameState.hasWall(x, y+1):
     actions.append(((x, y+1), Directions.NORTH))
-  if y-1 >= 0 and gameState.hasWall(x, y-1):
+  if y-1 >= 0 and not gameState.hasWall(x, y-1):
     actions.append(((x, y-1), Directions.SOUTH))
   return actions
+
+def nextPosition(pos, action):
+  x, y = pos
+  if Directions.NORTH:
+    return (x, y+1)
+  elif Directions.EAST:
+    return (x+1, y)
+  elif Directions.SOUTH:
+    return (x, y-1)
+  elif Directions.WEST:
+    return (x+1, y)
