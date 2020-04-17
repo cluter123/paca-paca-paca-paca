@@ -242,3 +242,22 @@ def myLegalMoves(x, y, gameState):
       actions.remove((a,b))
   return actions
   
+def aStarSearch(problem, heuristic=nullHeuristic):
+    """Search the node that has the lowest combined cost and heuristic first."""
+    "*** YOUR CODE HERE ***"
+    pq = util.PriorityQueue() # Priority Queue
+    expanded = [] # list of explored nodes
+    pq.push((problem.getStartState(), []), heuristic(problem.getStartState(), problem)) # stores states as tuple of (state, direction), initial node based on heuristic
+
+    while(not pq.isEmpty()):
+        state, directions = pq.pop() # gets state and direction
+        if problem.isGoalState(state): # returns direction if goal state
+            return directions
+        else:
+            if state not in expanded: # checks if state has been expanded 
+                expanded.append(state) # adds state to expanded list
+                tmp = problem.getSuccessors(state) 
+                for item in tmp: # push all non expanded nodes into priority queue
+                    if item[0] not in expanded: 
+                        pq.push((item[0], directions + [item[1]]), problem.getCostOfActions(directions + [item[1]]) + heuristic(item[0], problem)) # cost of actions + heuristic function determines f
+    return [] #return empty if no goal node found
