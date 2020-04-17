@@ -16,12 +16,11 @@ from captureAgents import CaptureAgent
 import random, time, util
 from game import Directions
 import game
-
 #################
 # Team creation #
 #################
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'DummyAgent', second = 'DummyAgent'):
+               first = 'DefaultAgent', second = 'DefaultAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
@@ -95,7 +94,27 @@ class DefaultAgent(CaptureAgent):
   """
   A base class for reflex agents that chooses score-maximizing actions
   """
- 
+  # dictionary of two items (enemy1 & enemy 2) which each contain a list of tuples (corrdinates)
+  enemyPositions = {}
+  turnCount = 0 
+  
+  def updateEnemyPositions(self):
+    """"""
+    DefaultAgent.turnCount += 1
+    currentObservation = self.getCurrentObservation()
+    for index, history in DefaultAgent.enemyPositions.items():
+      x, y = currentObservation.getAgentPosition(index)
+      px, py = history[-1]
+      possible = myLegalMoves(px, py, currentObservation)
+      minspot = (x, y)
+      mindist = 99
+      for spot in possible:
+        dist = self.getMazeDistance((x, y), spot)
+        if dist < mindist:
+          mindist = dist
+          minspot = spot
+      history.append(minspot)
+    
   def registerInitialState(self, gameState):
     """
     This method handles the initial setup of the
@@ -120,18 +139,24 @@ class DefaultAgent(CaptureAgent):
     '''
     Your initialization code goes here, if you need any.
     '''
+    for opponent in self.getOpponents(gameState):
+      DefaultAgent.enemyPositions[opponent] = [gameState.getInitialAgentPosition(opponent)]
+      
     self.start = gameState.getAgentPosition(self.index)
 
   def chooseAction(self, gameState):
     """
     Picks among actions randomly.
     """
+    if (DefaultAgent.turnCount % 2) == 0:
+      self.updateEnemyPositions()
+    else:
+      DefaultAgent.turnCount += 1
     actions = gameState.getLegalActions(self.index)
 
     '''
     You should change this in your own agent.
     '''
-
     return random.choice(actions)
 
 ###################
@@ -141,6 +166,9 @@ class AttackAgent(DefaultAgent):
   """
   A base class for reflex agents that chooses score-maximizing actions
   """
+  def __init__(self, index, timeForComputing = .1):
+    super().__init__(self, index, timeForComputing)
+    self.pelletCount = 0
 
   def chooseAction(self, gameState):
     """
@@ -173,3 +201,25 @@ class DefendAgent(DefaultAgent):
     '''
 
     return random.choice(actions)
+
+
+
+
+def getClosestEnemy(pos, gameState, enemyIndex):
+  """Return the (x, y) of the closest enemy to point (X, Y)."""
+  x, y = pos
+  minEnemy = None
+  minLen = 9999
+
+  for index in enemyIndex:
+    
+
+  
+def myLegalMoves(x, y, gameState):
+  actions = [(x+1, y), (x-1, y), (x,y+1), (x, y-1), (x,y)]
+  for index in range(len(actions) - 1, -1, -1):
+    a, b = actions[index]
+    if gameState.hasWall(a, b):
+      actions.remove((a,b))
+  return actions
+  
