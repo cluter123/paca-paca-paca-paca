@@ -143,7 +143,7 @@ class DefaultAgent(CaptureAgent):
     '''
     for opponent in self.getOpponents(gameState):
       DefaultAgent.enemyPositions[opponent] = [gameState.getInitialAgentPosition(opponent)]
-      
+    print self.getFood(gameState)
     self.start = gameState.getAgentPosition(self.index)
 
   def getClosestEnemy(self, pos, gameState):
@@ -158,21 +158,22 @@ class DefaultAgent(CaptureAgent):
     return (minEnemy, mindist)
       
   def getSafestFood(self, gameState):
+    pq = PriorityQueue()
     foods = self.getFood(gameState)
     me = gameState.getAgentPosition(self.index)
-    pq = PriorityQueue()
     for x in range(0, foods.width):
       for y in range(0, foods.height):
-        if foods[x][y]:
-          pacmanDist = self.getMazeDistance(me, (x,y))
-          closeEnemy, enemyDist = self.getClosestEnemy((x,y), gameState)
-          value = float(pacmanDist)
-          if enemyDist > 0:
-            value += float(1)/enemyDist
-          value *= -1
-          pq.push((x,y), value)
+        if not foods[x][y]:
+          continue
+        _, ghostdist = self.getClosestEnemy((x, y), gameState)
+        medist = self.getMazeDistance((x, y), me)
+        priority = 10000
+        if ghostdist != 0:
+          priority = -(medist + (1.0 / ghostdist))
+        pq.push((x, y), priority)
     return pq.pop()
         
+    
   def chooseAction(self, gameState):
     """
     Picks among actions randomly.
@@ -252,21 +253,3 @@ def myLegalMovesWithDirection(x, y, gameState):
   if gameState.hasWall(x, y-1):
     actions.append(Directions.SOUTH)
   return actions
-  
-# def aStarSearch(problem, heuristic=nullHeuristic):
-#     pq = PriorityQueue() # Priority Queue
-#     expanded = [] # list of explored nodes
-#     pq.push((problem.getStartState(), []), heuristic(problem.getStartState(), problem)) # stores states as tuple of (state, direction), initial node based on heuristic
-
-#     while(not pq.isEmpty()):
-#         state, directions = pq.pop() # gets state and direction
-#         if problem.isGoalState(state): # returns direction if goal state
-#             return directions
-#         else:
-#             if state not in expanded: # checks if state has been expanded 
-#                 expanded.append(state) # adds state to expanded list
-#                 tmp = problem.getSuccessors(state) 
-#                 for item in tmp: # push all non expanded nodes into priority queue
-#                     if item[0] not in expanded: 
-#                         pq.push((item[0], directions + [item[1]]), problem.getCostOfActions(directions + [item[1]]) + heuristic(item[0], problem)) # cost of actions + heuristic function determines f
-#     return [] #return empty if no goal node found
