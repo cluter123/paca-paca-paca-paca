@@ -18,12 +18,13 @@ from game import Directions
 import game
 from util import PriorityQueue
 from util import manhattanDistance
+from baselineTeam import  DefensiveReflexAgent
 
 #################
 # Team creation #
 #################
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'DefaultAgent', second = 'DefaultAgent'):
+               first = 'DefaultAgent', second = 'DefensiveReflexAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
@@ -109,11 +110,11 @@ class DefaultAgent(CaptureAgent):
       x, y = currentObservation.getAgentPosition(index)
       px, py = history[-1]
       possible = myLegalMoves(px, py, currentObservation)
-      minspot = (x, y)
-      mindist = 99
+      minspot = (px, py)
+      mindist = 9999
       for spot in possible:
         dist = self.getMazeDistance((x, y), spot)
-        if dist < mindist:
+        if dist < mindist and not currentObservation.hasWall(x, y):
           mindist = dist
           minspot = spot
       history.append(minspot)
@@ -169,25 +170,24 @@ class DefaultAgent(CaptureAgent):
         _, ghostdist = self.getClosestEnemy((x, y), gameState)
         medist = self.getMazeDistance((x, y), me)
         priority = 10000
-        if medist != 0:
-          priority = -(ghostdist * 1 + (1.0 / medist) * 5)
+        if ghostdist != 0:
+          priority = (medist + (1.0 / ghostdist) * 1)
         pq.push((x, y), priority)
     return pq.pop()
         
   def getSafestHome(self, gameState):
-    column = gameState.getWalls().width / 2
+    column = gameState.getWalls().width / 2 - 1
     height = gameState.getWalls().height
     pq = PriorityQueue()
     me = gameState.getAgentPosition(self.index)
     for y in range(0, height):
-      pos = (column, y)
       if not gameState.hasWall(column, y):
         priority = 10000
         _, ghostdist = self.getClosestEnemy((column, y), gameState)
         medist = self.getMazeDistance((column, y), me)
         priority = 10000
         if medist != 0:
-          priority = (ghostdist * 10 + (1.0 / medist) * 1)
+          priority = -(ghostdist + (1.0 / medist))
         pq.push((column, y), priority)
     return pq.pop()
         
@@ -211,25 +211,42 @@ class DefaultAgent(CaptureAgent):
               pq.push((item[0], directions + [item[1]]), heuristic(item[0], food))
     return [] #return empty if no goal node found
 
-  def chooseAction(self, gameState):
-    if (DefaultAgent.turnCount % 2) == 0:
-      self.updateEnemyPositions()
+  def inHome(self, position, gameState):
+    x, _ = position;
+    if self.red:
+      return x <= (gameState.getWalls().width / 2) - 1
     else:
-      DefaultAgent.turnCount += 1
+      return x >= (gameState.getWalls().width / 2) - 1
+  
+  def chooseAction(self, gameState):
+    # if (DefaultAgent.turnCount % 2) == 0:
+    self.updateEnemyPositions()
+    # else:
+      # DefaultAgent.turnCount += 1
     me = gameState.getAgentPosition(self.index)
-    if gameState.getInitialAgentPosition(self.index) == me:
+    if self.inHome(me, gameState):
       self.pelletCount = 0
-    # tactions = gameState.getLegalActions(self.index)
-    if self.pelletCount >= 3:
+    _, ghostdist = self.getClosestEnemy(me, gameState)
+    # main decisions
+    if not self.inHome(me, gameState) and ghostdist < 3:
+      # run awway from a nearby ghost
+      mindist = 9999
+      moves = gameState.getLegalActions(self.index)
+      bestAction = moves[0]
+      for move in moves:
+        np = nextPosition(me, move)
+        if gameState.hasWall(np[0], np[1]):
+          continue
+        _, gdist = self.getClosestEnemy(np, gameState)
+        if gdist < mindist:
+          mindist = gdist
+          bestAction = move
+      return bestAction;
+    elif self.pelletCount >= 1:
       # go home
-      column = gameState.getWalls().width / 2
       bestHome = self.getSafestHome(gameState)
       actions = self.aStarSearch(bestHome, gameState)
       action = actions[0]
-      nx, ny = nextPosition(me, action)
-      if nx <= column:
-        self.pelletCount = 0
-        print "count: 0"
       return action
     else:
       # go find food
@@ -237,9 +254,8 @@ class DefaultAgent(CaptureAgent):
       actions = self.aStarSearch(bestFood, gameState)
       action = actions[0]
       nx, ny = nextPosition(me, action)
-      if gameState.hasFood(nx, ny):
+      if self.getFood(gameState)[nx][ny]:
         self.pelletCount += 1
-        print "count: ", self.pelletCount
       return actions[0]
   
 ###################
@@ -293,6 +309,7 @@ def myLegalMoves(x, y, gameState):
     if gameState.hasWall(a, b):
       actions.remove((a,b))
   return actions
+
 def myLegalMovesWithDirection(coord, gameState):
   x, y = coord
   actions = []
