@@ -310,11 +310,13 @@ def myLegalMovesWithDirection(coord, gameState):
 
 def nextPosition(pos, action):
   x, y = pos
-  if Directions.NORTH:
+  if action == Directions.NORTH:
     return (x, y+1)
-  elif Directions.EAST:
+  elif action == Directions.EAST:
     return (x+1, y)
-  elif Directions.SOUTH:
+  elif action == Directions.SOUTH:
     return (x, y-1)
-  elif Directions.WEST:
+  elif action == Directions.WEST:
     return (x+1, y)
+  else:
+    return (x, y)
