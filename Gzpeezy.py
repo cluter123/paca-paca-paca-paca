@@ -222,17 +222,26 @@ class DefaultAgent(CaptureAgent):
           minspot = spot
       history.append(minspot)
 
-  def getClosestEnemyPos(self, pos):
-    minPosition = None
-    mindist = 9999
-    for index in DefaultAgent.enemyPositions.keys():
-      lastLoc = DefaultAgent.enemyPositions[index][-1]
-      enemydist = self.getMazeDistance(pos, lastLoc)
-      if enemydist < mindist:
-        minPosition = DefaultAgent.enemyPositions[index][-1]
-        mindist = enemydist
-    return minPosition
+  def getClosestEnemiesPos(self, pos):
+    """Returns a tuple of enemy positions (a, b) where a is closer to pos than b."""
+    enemies = DefaultAgent.enemyPositions.keys()
+    onepos = DefaultAgent.enemyPositions[enemies[0]][-1]
+    twopos = DefaultAgent.enemyPositions[enemies[1]][-1]
+    if self.getMazeDistance(pos, onepos) < self.getMazeDistance(pos, twopos):
+      return (onepos, twopos)
+    else:
+      return (twopos, onepos)
   
+  def isInHome(self, gameState, pos):
+    column = gameState.getWalls().width / 2
+    if self.red:
+      if pos[0] < column:
+        return True
+    else:
+      if pos[0] >= column:
+        return True
+    return False
+
   def aStarSearch(self, food, gameState, heuristic=manhattanDistance):
     """Search the node that has the lowest combined cost and heuristic first."""
     pq = PriorityQueue() # Priority Queue
@@ -322,25 +331,12 @@ class AttackAgent(DefaultAgent):
         return True
     
     return False
-  
-  def isInHome(self, gameState, pos):
-    column = gameState.getWalls().width / 2
-    if self.index % 2 == 0:
-      if pos[0] < column:
-        return True
-    else:
-      if pos[0] >= column:
-        return True
-    return False
 
 ###################
 ## Defend Agent  ##
 ###################
 class DefendAgent(DefaultAgent):
-  """
-  A base class for reflex agents that chooses score-maximizing actions
-  """
-
+  """Gets as close to the closest enemy without leaving the home field"""
   def getFeatures(self, gameState, action):
     features = util.Counter()
     successor = self.getSuccessor(gameState, action)
@@ -369,6 +365,27 @@ class DefendAgent(DefaultAgent):
   def getWeights(self, gameState, action):
     return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}
 
+  def aStarSearch(self, food, gameState, heuristic=manhattanDistance):
+    """Search the node that has the lowest combined cost and heuristic first."""
+    pq = PriorityQueue() # Priority Queue
+    expanded = [] # list of explored nodes
+    startState = (gameState, [])
+    pq.push(startState, heuristic(startState[0].getAgentPosition(self.index), food)) # stores states as tuple of (state, direction), initial node based on heuristic
+    while not pq.isEmpty():
+      state, directions = pq.pop() # gets state and direction
+      position = state.getAgentPosition(self.index)
+      if position == food: # returns direction if goal state
+        return directions
+      else:
+        if position not in expanded: # checks if state has been expanded 
+          expanded.append(position) # adds state to expanded list
+          tmp = state.getLegalActions(self.index)
+          for action in tmp: # push all non expanded nodes into priority queue
+            successorState = state.generateSuccessor(self.index, action)
+            if successorState.getAgentPosition(self.index) not in expanded:
+              pq.push((successorState, directions + [action]), heuristic(successorState.getAgentPosition(self.index), food))
+    return [] #return empty if no goal node found
+  
   def chooseAction(self, gameState):
     """
     Picks among the actions with the highest Q(s,a).
@@ -378,14 +395,19 @@ class DefendAgent(DefaultAgent):
     else:
       DefaultAgent.turnCount += 1
 
-    me = gameState.getAgetnPosition(self.index)
-    closestGhost = self.getClosestEnemyPos(me)
-    path = self.aStarSearch(closestGhost, gameState)
+    me = gameState.getAgentPosition(self.index)
+    target, furtherGhost = self.getClosestEnemiesPos(me)
+    if self.isInHome(gameState, furtherGhost) and not self.isInHome(gameState, target):
+      target = furtherGhost
+    path = self.aStarSearch(target, gameState)
     possibleActions = gameState.getLegalActions(self.index)
-    
-    
-    return bestAction
-
+    for i in range(len(possibleActions) - 1, -1, -1):
+      if not self.isInHome(gameState, nextPosition(me, possibleActions[i])):
+        possibleActions.remove(possibleActions[i])
+    finalaction = 'Stop'
+    if len(path) > 0 and path[0] in possibleActions:
+      finalaction = path[0]
+    return finalaction
 
 def nextPosition(pos, action):
   x, y = pos
@@ -396,6 +418,6 @@ def nextPosition(pos, action):
   elif action == Directions.SOUTH:
     return (x, y-1)
   elif action == Directions.WEST:
-    return (x+1, y)
+    return (x-1, y)
   else:
     return (x, y)
