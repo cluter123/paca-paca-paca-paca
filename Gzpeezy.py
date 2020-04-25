@@ -366,7 +366,8 @@ class DefendAgent(DefaultAgent, object):
     return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}
 
   def aStarSearch(self, food, gameState, heuristic=manhattanDistance):
-    """Search the node that has the lowest combined cost and heuristic first."""
+    """Search the node that has the lowest combined cost and heuristic first.
+This version of A* ignores enemies, so we can eat them >:)"""
     pq = PriorityQueue() # Priority Queue
     expanded = [] # list of explored nodes
     startState = (gameState, [])
@@ -374,17 +375,17 @@ class DefendAgent(DefaultAgent, object):
     while not pq.isEmpty():
       state, directions = pq.pop() # gets state and direction
       position = state.getAgentPosition(self.index)
-      if position == food: # returns direction if goal state
-        return directions
-      else:
-        if position not in expanded: # checks if state has been expanded 
-          expanded.append(position) # adds state to expanded list
-          tmp = state.getLegalActions(self.index)
-          for action in tmp: # push all non expanded nodes into priority queue
-            successorState = state.generateSuccessor(self.index, action)
-            if successorState.getAgentPosition(self.index) not in expanded:
-              pq.push((successorState, directions + [action]), heuristic(successorState.getAgentPosition(self.index), food))
-    return [] #return empty if no goal node found
+      if position not in expanded: # checks if state has been expanded 
+        expanded.append(position) # adds state to expanded list
+        tmp = state.getLegalActions(self.index)
+        for action in tmp: # push all non expanded nodes into priority queue
+          possibleNext = nextPosition(position, action)
+          if possibleNext == food: # returns direction if goal state
+            return directions + [action]
+          successorState = state.generateSuccessor(self.index, action)
+          if successorState.getAgentPosition(self.index) not in expanded:
+            pq.push((successorState, directions + [action]), heuristic(successorState.getAgentPosition(self.index), food))
+    return []                   # return empty if no goal node found
   
   def chooseAction(self, gameState):
     """
@@ -411,7 +412,7 @@ class DefendAgent(DefaultAgent, object):
       for i in range(len(possibleActions) - 1, -1, -1):
         if not self.isInHome(gameState, nextPosition(me, possibleActions[i])):
           possibleActions.remove(possibleActions[i])
-    finalaction = 'Stop'
+    finalaction = random.choice(possibleActions)
     if len(path) > 0 and path[0] in possibleActions:
       finalaction = path[0]
     return finalaction
