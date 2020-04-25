@@ -268,10 +268,14 @@ class DefaultAgent(CaptureAgent):
 ###################
 ## Attack Agent  ##
 ###################
-class AttackAgent(DefaultAgent):
+class AttackAgent(DefaultAgent, object):
   """
   A base class for reflex agents that chooses score-maximizing actions
   """
+  def registerInitialState(self, gameState):
+    super(AttackAgent, self).registerInitialState(gameState)
+    self.prevMoves = []
+
 
   def chooseAction(self, gameState):
     """
@@ -282,15 +286,39 @@ class AttackAgent(DefaultAgent):
     else:
       DefaultAgent.turnCount += 1
 
+    scaredTimers = {}
+    for ghost in self.enemyPositions.keys():
+      scaredTimers[ghost] = gameState.getAgentState(ghost).scaredTimer
+    pos = gameState.getAgentPosition(self.index)
+
     action = None
     if self.evalBack(gameState):
       action = self.aStarSearch(self.getClosestHomeDot(gameState), gameState)
     else:
       action = self.aStarSearch(self.getClosestDot(gameState), gameState)
     
-    if len(action) == 0:
+    ## attacks scared ghost
+    if not self.isInHome(gameState, pos) and any(scaredTimers[ghost] > 0 for x in self.enemyPositions.keys()):
+      for ghost, locations in self.enemyPositions.items():
+        if not self.isInHome(gameState, gameState.getAgentPosition(ghost)) and scaredTimers[ghost] > 0 and self.getMazeDistance(pos, locations[-1]) < 3:
+          action = self.aStarSearch(gameState.getAgentPosition(ghost), gameState)
+
+    if action == None or len(action) == 0:
+      if len(self.prevMoves) > 20 and all(self.prevMoves[x] == 'Stop' for x in range(len(self.prevMoves) - 10, len(self.prevMoves))):
+        actions = gameState.getLegalActions(self.index)
+        if self.index % 2 == 0:
+          if 'East' in actions:
+            actions.remove('East')
+        else:
+          if 'West' in actions:
+            actions.remove('West')
+        if len(actions) == 0:
+          return 'Stop'
+        return random.choice(actions)
+      self.prevMoves.append('Stop')
       return 'Stop'
     
+    self.prevMoves.append(action[0])
     return action[0]
 
   def getClosestEnemyDist(self, pos):
@@ -327,7 +355,7 @@ class AttackAgent(DefaultAgent):
       return True
 
     for ghost, locations in self.enemyPositions.items():
-      if not self.isInHome(gameState, locations[-1]) and self.getMazeDistance(gameState.getAgentPosition(self.index), locations[-1]) < 5:
+      if not self.isInHome(gameState, locations[-1]) and self.getMazeDistance(gameState.getAgentPosition(self.index), locations[-1]) < 5 and self.getMazeDistance(gameState.getAgentPosition(self.index), gameState.getAgentPosition(ghost)) < 5:
         return True
     
     return False
