@@ -262,6 +262,7 @@ class AttackAgent(DefaultAgent):
         successor = self.getSuccessor(gameState, action)
         pos2 = successor.getAgentPosition(self.index)
         dist = self.getMazeDistance(self.start,pos2)
+        dist += self.getClosestEnemyDist(pos2)
         if dist < bestDist:
           bestAction = action
           bestDist = dist
