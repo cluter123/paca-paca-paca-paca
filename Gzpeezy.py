@@ -221,6 +221,17 @@ class DefaultAgent(CaptureAgent):
           mindist = dist
           minspot = spot
       history.append(minspot)
+
+  def getClosestEnemyPos(self, pos):
+    minPosition = None
+    mindist = 9999
+    for index in DefaultAgent.enemyPositions.keys():
+      lastLoc = DefaultAgent.enemyPositions[index][-1]
+      enemydist = self.getMazeDistance(pos, lastLoc)
+      if enemydist < mindist:
+        minPosition = DefaultAgent.enemyPositions[index][-1]
+        mindist = enemydist
+    return minPosition
   
   def aStarSearch(self, food, gameState, heuristic=manhattanDistance):
     """Search the node that has the lowest combined cost and heuristic first."""
@@ -357,3 +368,20 @@ class DefendAgent(DefaultAgent):
 
   def getWeights(self, gameState, action):
     return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}
+
+  def chooseAction(self, gameState):
+    """
+    Picks among the actions with the highest Q(s,a).
+    """
+    if DefaultAgent.turnCount % 2 == 0:
+      self.updateEnemyPositions()
+    else:
+      DefaultAgent.turnCount += 1
+
+    me = gameState.getAgetnPosition(self.index)
+    closestGhost = self.getClosestEnemyPos(me)
+    path = self.aStarSearch(closestGhost, gameState)
+    possibleActions = gameState.getLegalActions(self.index)
+    
+    
+    return bestAction
