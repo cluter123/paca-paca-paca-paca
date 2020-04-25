@@ -385,3 +385,17 @@ class DefendAgent(DefaultAgent):
     
     
     return bestAction
+
+
+def nextPosition(pos, action):
+  x, y = pos
+  if action == Directions.NORTH:
+    return (x, y+1)
+  elif action == Directions.EAST:
+    return (x+1, y)
+  elif action == Directions.SOUTH:
+    return (x, y-1)
+  elif action == Directions.WEST:
+    return (x+1, y)
+  else:
+    return (x, y)
