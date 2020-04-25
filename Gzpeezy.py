@@ -228,9 +228,9 @@ class DefaultAgent(CaptureAgent):
     onepos = DefaultAgent.enemyPositions[enemies[0]][-1]
     twopos = DefaultAgent.enemyPositions[enemies[1]][-1]
     if self.getMazeDistance(pos, onepos) < self.getMazeDistance(pos, twopos):
-      return (onepos, twopos)
+      return (onepos, enemies[0], twopos, enemies[1])
     else:
-      return (twopos, onepos)
+      return (twopos, enemies[1], onepos, enemies[0])
   
   def getClosestHomeDot(self, gameState):
     pq = PriorityQueue()
@@ -426,10 +426,11 @@ This version of A* ignores enemies, so we can eat them >:)"""
       DefaultAgent.turnCount += 1
 
     me = gameState.getAgentPosition(self.index)      
-    target, furtherGhost = self.getClosestEnemiesPos(me)
+    target, targeti, furtherGhost, furtheri = self.getClosestEnemiesPos(me)
     if self.isInHome(gameState, furtherGhost) and not self.isInHome(gameState, target):
       target = furtherGhost
-    enemyscared = gameState.getAgentState(DefaultAgent.enemyPositions.keys()[0]).scaredTimer > 0
+      targeti = furtheri
+    enemyscared = gameState.getAgentState(targeti).scaredTimer > 0
     # run back home if we are in danger
     if not self.isInHome(gameState, me) and not enemyscared:
       path = super(DefendAgent, self).aStarSearch(self.getClosestHomeDot(gameState), gameState)
