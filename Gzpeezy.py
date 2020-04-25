@@ -426,14 +426,14 @@ This version of A* ignores enemies, so we can eat them >:)"""
 
     me = gameState.getAgentPosition(self.index)      
     target, furtherGhost = self.getClosestEnemiesPos(me)
+    if self.isInHome(gameState, furtherGhost) and not self.isInHome(gameState, target):
+      target = furtherGhost
     enemyscared = gameState.getAgentState(DefaultAgent.enemyPositions.keys()[0]).scaredTimer > 0
     # run back home if we are in danger
     if not self.isInHome(gameState, me) and not enemyscared:
       path = super(DefendAgent, self).aStarSearch(gameState.getInitialAgentPosition(self.index), gameState)
       return path[0]
     # track the vulnerable enemy
-    if self.isInHome(gameState, furtherGhost) and not self.isInHome(gameState, target):
-      target = furtherGhost
     path = self.aStarSearch(target, gameState)
     possibleActions = gameState.getLegalActions(self.index)
     if not enemyscared:
