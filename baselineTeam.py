@@ -67,7 +67,7 @@ class ReflexCaptureAgent(CaptureAgent):
     Picks among the actions with the highest Q(s,a).
     """
     actions = gameState.getLegalActions(self.index)
-
+    #print "Enemy ", self.index, ": ", gameState.getAgentState(self.index).getPosition()
     # You can profile your evaluation time by uncommenting these lines
     # start = time.time()
     values = [self.evaluate(gameState, a) for a in actions]

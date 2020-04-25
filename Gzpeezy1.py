@@ -99,6 +99,7 @@ class DefaultAgent(CaptureAgent):
   """
   A base class for reflex agents that chooses score-maximizing actions
   """
+
   enemyPositions = {}
   turnCount = 0
     
@@ -123,6 +124,7 @@ class DefaultAgent(CaptureAgent):
     '''
     CaptureAgent.registerInitialState(self, gameState)
     self.start = gameState.getAgentPosition(self.index)
+    
 
     '''
     Your initialization code goes here, if you need any.
@@ -138,11 +140,10 @@ class DefaultAgent(CaptureAgent):
       self.updateEnemyPositions()
     else:
       DefaultAgent.turnCount += 1
-  
-    actions = gameState.getLegalActions(self.index)
 
+    actions = gameState.getLegalActions(self.index)
     values = [self.evaluate(gameState, a) for a in actions]
-    
+
     maxValue = max(values)
     bestActions = [a for a, v in zip(actions, values) if v == maxValue]
 
@@ -229,47 +230,6 @@ class AttackAgent(DefaultAgent):
   """
   A base class for reflex agents that chooses score-maximizing actions
   """
-
-  def chooseAction(self, gameState):
-    """
-    Picks among the actions with the highest Q(s,a).
-    """
-    if DefaultAgent.turnCount % 2 == 0:
-      self.updateEnemyPositions()
-    else:
-      DefaultAgent.turnCount += 1
-  
-    actions = gameState.getLegalActions(self.index)
-    if 'Stop' in actions:
-      actions.remove('Stop')
-    #print "actions: ", actions
-
-
-    values = [self.evaluate(gameState, a) for a in actions]
-
-    #   print "values: ", values
-    
-    maxValue = max(values)
-    bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-
-    #   print "best: ", bestActions
-
-    foodLeft = len(self.getFood(gameState).asList())
-
-    if gameState.getAgentState(self.index).numCarrying >= 1:
-      bestDist = 9999
-      for action in actions:
-        successor = self.getSuccessor(gameState, action)
-        pos2 = successor.getAgentPosition(self.index)
-        dist = self.getMazeDistance(self.start,pos2)
-        if dist < bestDist:
-          bestAction = action
-          bestDist = dist
-      return bestAction
-
-    return random.choice(bestActions)
-
-
   def getFeatures(self, gameState, action):
     features = util.Counter()
     successor = self.getSuccessor(gameState, action)
@@ -282,14 +242,13 @@ class AttackAgent(DefaultAgent):
       myPos = successor.getAgentState(self.index).getPosition()
       minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
       features['distanceToFood'] = minDistance
-      features['enemyDist'] = self.getClosestEnemyDist(myPos)
+      #features['closestEnemy'] = self.getClosestEnemyDist(myPos, gameState)
     return features
 
   def getWeights(self, gameState, action):
-    #print DefaultAgent.enemyPositions
-    return {'successorScore': 100, 'distanceToFood': -10, 'enemyDist': 3}
-  
-  def getClosestEnemyDist(self, pos):
+    return {'successorScore': 100, 'distanceToFood': -10, 'closestEnemy': 0}
+
+  def getClosestEnemyDist(self, pos, gameState):
     minEnemy = None
     mindist = 9999
     for index in DefaultAgent.enemyPositions.keys():
