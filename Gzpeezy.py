@@ -232,6 +232,19 @@ class DefaultAgent(CaptureAgent):
     else:
       return (twopos, onepos)
   
+  def getClosestHomeDot(self, gameState):
+    pq = PriorityQueue()
+    column = gameState.getWalls().width / 2
+    height = gameState.getWalls().height
+    if self.index % 2 == 0:
+      column -= 1
+
+    for y in range(0, height):
+      if not gameState.hasWall(column, y):
+        pq.push((column, y), self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), (column, y)))
+    return pq.pop()
+
+
   def isInHome(self, gameState, pos):
     column = gameState.getWalls().width / 2
     if self.red:
@@ -337,18 +350,6 @@ class AttackAgent(DefaultAgent, object):
     for food in self.getFood(gameState).asList():
       pq.push(food, self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), food))
     return pq.pop()
-  
-  def getClosestHomeDot(self, gameState):
-    pq = PriorityQueue()
-    column = gameState.getWalls().width / 2
-    height = gameState.getWalls().height
-    if self.index % 2 == 0:
-      column -= 1
-
-    for y in range(0, height):
-      if not gameState.hasWall(column, y):
-        pq.push((column, y), self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), (column, y)))
-    return pq.pop()
 
   def evalBack(self, gameState):
     if gameState.getAgentState(self.index).numCarrying >= 4:
@@ -431,7 +432,7 @@ This version of A* ignores enemies, so we can eat them >:)"""
     enemyscared = gameState.getAgentState(DefaultAgent.enemyPositions.keys()[0]).scaredTimer > 0
     # run back home if we are in danger
     if not self.isInHome(gameState, me) and not enemyscared:
-      path = super(DefendAgent, self).aStarSearch(gameState.getInitialAgentPosition(self.index), gameState)
+      path = super(DefendAgent, self).aStarSearch(self.getClosestHomeDot(gameState), gameState)
       return path[0]
     # track the vulnerable enemy
     path = self.aStarSearch(target, gameState)
