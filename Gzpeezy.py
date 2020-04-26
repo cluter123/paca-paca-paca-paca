@@ -273,7 +273,7 @@ class DefaultAgent(CaptureAgent):
           for action in tmp: # push all non expanded nodes into priority queue
             successorState = state.generateSuccessor(self.index, action)
             if successorState.getAgentPosition(self.index) not in expanded:
-              enemyPos = [successorState.getAgentPosition(index) for index in self.getOpponents(successorState)]
+              enemyPos = [successorState.getAgentState(index).getPosition() for index in self.getOpponents(successorState)]
               if successorState.getAgentPosition(self.index) not in enemyPos:
                 pq.push((successorState, directions + [action]), heuristic(successorState.getAgentPosition(self.index), food))
     return [] #return empty if no goal node found
