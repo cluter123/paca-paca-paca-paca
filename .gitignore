@@ -3,6 +3,7 @@
 *.html
 *.css
 *.pyc
+*.txt
 
 score
 
