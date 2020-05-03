@@ -24,7 +24,7 @@ from util import nearestPoint
 # Team creation #
 #################
 def createTeam(firstIndex, secondIndex, isRed,
-               second = 'AttackAgent', first = 'DefendAgent'):
+               first = 'AttackAgent', second = 'DefendAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
@@ -500,6 +500,13 @@ This version of A* ignores enemies, so we can eat them >:)"""
     enemyscared = gameState.getAgentState(targeti).scaredTimer > 0
     # run back home if we are in enemy teritory and the closest ghost is not scared
     if not self.isInHome(gameState, me) and not enemyscared:
+      foodAction = None
+      for action in possibleActions:
+        nextpos = nextPosition(me, action)
+        if gameState.hasFood(nextpos[0], nextpos[1]):
+          foodAction = action
+      if foodAction != None and gameState.getAgentState(self.index).numCarrying <= 4:
+        return foodAction
       path = super(DefendAgent, self).aStarSearch(self.getClosestHomeDot(gameState), gameState)
       return path[0]
     # track the vulnerable enemy
