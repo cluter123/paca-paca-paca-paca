@@ -25,7 +25,7 @@ from util import nearestPoint
 # Team creation #
 #################
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'AttackAgent', second = 'DefendAgent'):
+               second = 'AttackAgent', first = 'DefendAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
@@ -444,18 +444,32 @@ This version of A* ignores enemies, so we can eat them >:)"""
       DefaultAgent.turnCount += 1
 
     me = gameState.getAgentPosition(self.index)      
+    mescared = gameState.getAgentState(self.index).scaredTimer > 0
+    possibleActions = gameState.getLegalActions(self.index)
     target, targeti, furtherGhost, furtheri = self.getClosestEnemiesPos(me)
+    # if I'm scared and the closest ghost is within 5 blocks, keep distance
+    if mescared and self.getMazeDistance(me, target) <= 4:
+      path = self.aStarSearch(target, gameState)
+      if len(path) == 0:
+        return random.choice(possibleActions)
+      badAction = path[0]
+      runawayOptions = otherDirections(badAction)
+      runawayOptions.sort(key=lambda x: rateOpenness(nextPosition(me, x), gameState))
+      for action in runawayOptions:
+        if action in possibleActions:
+          return action
+      return random.choice(possibleActions)
+    # set target to an enemy in the home area
     if self.isInHome(gameState, furtherGhost) and not self.isInHome(gameState, target):
       target = furtherGhost
       targeti = furtheri
     enemyscared = gameState.getAgentState(targeti).scaredTimer > 0
-    # run back home if we are in danger
+    # run back home if we are in enemy teritory and the closest ghost is not scared
     if not self.isInHome(gameState, me) and not enemyscared:
       path = super(DefendAgent, self).aStarSearch(self.getClosestHomeDot(gameState), gameState)
       return path[0]
     # track the vulnerable enemy
     path = self.aStarSearch(target, gameState)
-    possibleActions = gameState.getLegalActions(self.index)
     if not enemyscared:
       for i in range(len(possibleActions) - 1, -1, -1):
         if not self.isInHome(gameState, nextPosition(me, possibleActions[i])):
@@ -477,3 +491,29 @@ def nextPosition(pos, action):
     return (x-1, y)
   else:
     return (x, y)
+
+def otherDirections(action):
+  if action == 'North':
+    return ['South', 'East', 'West']
+  elif action == 'South':
+    return ['South', 'East', 'West']
+  elif action == 'East':
+    return ['West', 'South', 'North']
+  elif action == 'West':
+    return ['East', 'South', 'North']
+
+def rateOpenness(pos, gameState):
+  "lower is better"
+  x, y = pos
+  if gameState.hasWall(x, y):
+    return 5
+  openness = 0
+  if gameState.hasWall(x, y + 1): # up
+    openness += 1
+  if gameState.hasWall(x, y - 1): # down
+    openness += 1
+  if gameState.hasWall(x - 1, y): # left
+    openness += 1
+  if gameState.hasWall(x + 1, y): # right
+    openness += 1
+  return openness  
