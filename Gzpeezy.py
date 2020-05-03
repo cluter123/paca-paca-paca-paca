@@ -307,7 +307,20 @@ class AttackAgent(DefaultAgent, object):
     if self.evalBack(gameState):
       action = self.aStarSearch(self.getClosestHomeDot(gameState), gameState)
     else:
-      action = self.aStarSearch(self.getClosestDot(gameState), gameState)
+      closestDotPos, closestDotDist = self.getClosestDot(gameState)
+      closestCapsule = self.getClosestCapsule(gameState)
+      
+      if closestCapsule is None:
+        action = self.aStarSearch(closestDotPos, gameState)
+      else:
+        closestCap, capsDist = closestCapsule
+        if closestDotDist < capsDist:
+          action = self.aStarSearch(closestDotPos, gameState)
+        else:
+          if any(scaredTimers[ghost] < 3 for x in self.enemyPositions.keys()):
+            action = self.aStarSearch(closestCap, gameState)
+          else:
+            action = self.aStarSearch(closestDotPos, gameState)
     
     if gameState.getAgentState(self.index).numCarrying < self.maxPellets(gameState):
       ## attacks scared ghost
@@ -315,13 +328,6 @@ class AttackAgent(DefaultAgent, object):
         for ghost, locations in self.enemyPositions.items():
           if not self.isInHome(gameState, locations[-1]) and scaredTimers[ghost] > 0 and self.getMazeDistance(pos, locations[-1]) < 6:
             action = self.aStarSearch(gameState.getAgentPosition(ghost), gameState)
-      
-       ## get cloest capsule
-      closestCapsule = self.getClosestCapsule(gameState)
-      if closestCapsule is not None:
-        closestCap, capsDist = closestCapsule
-        if any(scaredTimers[ghost] < 3 for x in self.enemyPositions.keys()) and capsDist < 10:
-          action = self.aStarSearch(closestCap, gameState)
     
     if self.isInHome(gameState, gameState.getAgentPosition(self.index)):
       closestEnemy, closestEnemyDist = self.getClosestEnemyDistAndPos(gameState.getAgentPosition(self.index))
@@ -371,7 +377,8 @@ class AttackAgent(DefaultAgent, object):
   def getClosestDot(self, gameState):
     pq = PriorityQueue()
     for food in self.getFood(gameState).asList():
-      pq.push(food, self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), food))
+      dist = self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), food)
+      pq.push((food, dist), dist)
     return pq.pop()
 
   def getClosestCapsule(self, gameState):
