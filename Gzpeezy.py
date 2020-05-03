@@ -310,10 +310,15 @@ class AttackAgent(DefaultAgent, object):
     else:
       action = self.aStarSearch(self.getClosestDot(gameState), gameState)
     
+    ## get cloest capsule
+    cloestCap, capsDist = getClosestCapsule(gameState)
+    if not any(scaredTimers[ghost] > 0 for x in self.enemyPositions.keys()) and capsDist < 10:
+      action = self.aStarSearch(closestCap, gameState)
+
     ## attacks scared ghost
     if not self.isInHome(gameState, pos) and any(scaredTimers[ghost] > 0 for x in self.enemyPositions.keys()):
       for ghost, locations in self.enemyPositions.items():
-        if not self.isInHome(gameState, gameState.getAgentPosition(ghost)) and scaredTimers[ghost] > 0 and self.getMazeDistance(pos, locations[-1]) < 3:
+        if not self.isInHome(gameState, locations[-1]) and scaredTimers[ghost] > 0 and self.getMazeDistance(pos, locations[-1]) < 3:
           action = self.aStarSearch(gameState.getAgentPosition(ghost), gameState)
 
     if action == None or len(action) == 0:
@@ -348,7 +353,20 @@ class AttackAgent(DefaultAgent, object):
   def getClosestDot(self, gameState):
     pq = PriorityQueue()
     for food in self.getFood(gameState).asList():
-      pq.push(food, self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), food))
+      dist = self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), food)
+      pq.push((food, dist), dist)
+    return pq.pop()
+
+  def getClosestCapsule(self, gameState):
+    pq = PriorityQueue()
+    red = (self.index % 2) == 0
+    capsules = None
+    if red:
+      capsules = gameState.getRedCapsules()
+    else:
+      capsules = gameState.getBlueCapsules()
+    for capsule in capsules:
+      pq.push(capsule, self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), capsule))
     return pq.pop()
 
   def evalBack(self, gameState):
@@ -356,7 +374,7 @@ class AttackAgent(DefaultAgent, object):
       return True
 
     for ghost, locations in self.enemyPositions.items():
-      if not self.isInHome(gameState, locations[-1]) and self.getMazeDistance(gameState.getAgentPosition(self.index), locations[-1]) < 5 and self.getMazeDistance(gameState.getAgentPosition(self.index), gameState.getAgentPosition(ghost)) < 5:
+      if not self.isInHome(gameState, locations[-1]) and self.getMazeDistance(gameState.getAgentPosition(self.index), gameState.getAgentPosition(ghost)) < 5:
         return True
     
     return False
