@@ -11,7 +11,6 @@
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
-
 from captureAgents import CaptureAgent
 import random, time, util
 from game import Directions
@@ -310,19 +309,27 @@ class AttackAgent(DefaultAgent, object):
     else:
       action = self.aStarSearch(self.getClosestDot(gameState), gameState)
     
-    ## get cloest capsule
-    cloestCap, capsDist = getClosestCapsule(gameState)
-    if not any(scaredTimers[ghost] > 0 for x in self.enemyPositions.keys()) and capsDist < 10:
-      action = self.aStarSearch(closestCap, gameState)
-
-    ## attacks scared ghost
-    if not self.isInHome(gameState, pos) and any(scaredTimers[ghost] > 0 for x in self.enemyPositions.keys()):
-      for ghost, locations in self.enemyPositions.items():
-        if not self.isInHome(gameState, locations[-1]) and scaredTimers[ghost] > 0 and self.getMazeDistance(pos, locations[-1]) < 3:
-          action = self.aStarSearch(gameState.getAgentPosition(ghost), gameState)
-
+    if gameState.getAgentState(self.index).numCarrying < self.maxPellets(gameState):
+      ## attacks scared ghost
+      if any(scaredTimers[ghost] > 0 for x in self.enemyPositions.keys()):
+        for ghost, locations in self.enemyPositions.items():
+          if not self.isInHome(gameState, locations[-1]) and scaredTimers[ghost] > 0 and self.getMazeDistance(pos, locations[-1]) < 6:
+            action = self.aStarSearch(gameState.getAgentPosition(ghost), gameState)
+      
+       ## get cloest capsule
+      closestCapsule = self.getClosestCapsule(gameState)
+      if closestCapsule is not None:
+        closestCap, capsDist = closestCapsule
+        if any(scaredTimers[ghost] < 3 for x in self.enemyPositions.keys()) and capsDist < 10:
+          action = self.aStarSearch(closestCap, gameState)
+    
+    if self.isInHome(gameState, gameState.getAgentPosition(self.index)):
+      closestEnemy, closestEnemyDist = self.getClosestEnemyDistAndPos(gameState.getAgentPosition(self.index))
+      if self.isInHome(gameState, closestEnemy) and closestEnemyDist < 3:
+        action = self.aStarDefSearch(closestEnemy, gameState)
+      
     if action == None or len(action) == 0:
-      if len(self.prevMoves) > 20 and all(self.prevMoves[x] == 'Stop' for x in range(len(self.prevMoves) - 10, len(self.prevMoves))):
+      if len(self.prevMoves) > 10 and all(self.prevMoves[x] == 'Stop' for x in range(len(self.prevMoves) - 10, len(self.prevMoves))):
         actions = gameState.getLegalActions(self.index)
         if self.index % 2 == 0:
           if 'East' in actions:
@@ -350,11 +357,21 @@ class AttackAgent(DefaultAgent, object):
         mindist = enemydist
     return mindist
 
+  def getClosestEnemyDistAndPos(self, pos):
+    minEnemy = None
+    mindist = 9999
+    for index in DefaultAgent.enemyPositions.keys():
+      lastLoc = DefaultAgent.enemyPositions[index][-1]
+      enemydist = self.getMazeDistance(pos, lastLoc)
+      if enemydist < mindist:
+        minEnemy = lastLoc
+        mindist = enemydist
+    return (minEnemy, mindist)
+
   def getClosestDot(self, gameState):
     pq = PriorityQueue()
     for food in self.getFood(gameState).asList():
-      dist = self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), food)
-      pq.push((food, dist), dist)
+      pq.push(food, self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), food))
     return pq.pop()
 
   def getClosestCapsule(self, gameState):
@@ -362,55 +379,65 @@ class AttackAgent(DefaultAgent, object):
     red = (self.index % 2) == 0
     capsules = None
     if red:
-      capsules = gameState.getRedCapsules()
-    else:
       capsules = gameState.getBlueCapsules()
+    else:
+      capsules = gameState.getRedCapsules()
     for capsule in capsules:
-      pq.push(capsule, self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), capsule))
+      dist = self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), capsule)
+      pq.push((capsule, dist), dist)
+    
+    if(pq.isEmpty()):
+      return None
+
     return pq.pop()
 
   def evalBack(self, gameState):
-    if gameState.getAgentState(self.index).numCarrying >= 4:
+    if gameState.getAgentState(self.index).numCarrying >= self.maxPellets(gameState):
+      return True
+
+    if len(self.getFood(gameState).asList()) <= 2:
       return True
 
     for ghost, locations in self.enemyPositions.items():
-      if not self.isInHome(gameState, locations[-1]) and self.getMazeDistance(gameState.getAgentPosition(self.index), gameState.getAgentPosition(ghost)) < 5:
+      if not self.isInHome(gameState, locations[-1]) and self.getMazeDistance(gameState.getAgentPosition(self.index), locations[-1]) < 5:
         return True
     
     return False
+
+  def maxPellets(self, gameState):
+    defaultMax = 4
+    closestEnemy = self.getClosestEnemyDist(gameState.getAgentPosition(self.index))
+    if(closestEnemy > 10):
+      defaultMax += closestEnemy - 10
+    return defaultMax
+
+  def aStarDefSearch(self, food, gameState, heuristic=manhattanDistance):
+    """Search the node that has the lowest combined cost and heuristic first.
+This version of A* ignores enemies, so we can eat them >:)"""
+    pq = PriorityQueue() # Priority Queue
+    expanded = [] # list of explored nodes
+    startState = (gameState, [])
+    pq.push(startState, heuristic(startState[0].getAgentPosition(self.index), food)) # stores states as tuple of (state, direction), initial node based on heuristic
+    while not pq.isEmpty():
+      state, directions = pq.pop() # gets state and direction
+      position = state.getAgentPosition(self.index)
+      if position not in expanded: # checks if state has been expanded 
+        expanded.append(position) # adds state to expanded list
+        tmp = state.getLegalActions(self.index)
+        for action in tmp: # push all non expanded nodes into priority queue
+          possibleNext = nextPosition(position, action)
+          if possibleNext == food: # returns direction if goal state
+            return directions + [action]
+          successorState = state.generateSuccessor(self.index, action)
+          if successorState.getAgentPosition(self.index) not in expanded:
+            pq.push((successorState, directions + [action]), heuristic(successorState.getAgentPosition(self.index), food))
+    return []                   # return empty if no goal node found  
 
 ###################
 ## Defend Agent  ##
 ###################
 class DefendAgent(DefaultAgent, object):
   """Gets as close to the closest enemy without leaving the home field"""
-  def getFeatures(self, gameState, action):
-    features = util.Counter()
-    successor = self.getSuccessor(gameState, action)
-
-    myState = successor.getAgentState(self.index)
-    myPos = myState.getPosition()
-
-    # Computes whether we're on defense (1) or offense (0)
-    features['onDefense'] = 1
-    if myState.isPacman: features['onDefense'] = 0
-
-    # Computes distance to invaders we can see
-    enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-    invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
-    features['numInvaders'] = len(invaders)
-    if len(invaders) > 0:
-      dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
-      features['invaderDistance'] = min(dists)
-
-    if action == Directions.STOP: features['stop'] = 1
-    rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
-    if action == rev: features['reverse'] = 1
-
-    return features
-
-  def getWeights(self, gameState, action):
-    return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}
 
   def aStarSearch(self, food, gameState, heuristic=manhattanDistance):
     """Search the node that has the lowest combined cost and heuristic first.
