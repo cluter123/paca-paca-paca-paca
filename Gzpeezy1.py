@@ -24,7 +24,7 @@ from util import nearestPoint
 # Team creation #
 #################
 def createTeam(firstIndex, secondIndex, isRed,
-               second = 'AttackAgent', first = 'DefendAgent'):
+               second = 'DefendAgent', first = 'DefendAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
