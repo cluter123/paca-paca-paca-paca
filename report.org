@@ -1,0 +1,40 @@
+#+title: Gzpeezy Report
+#+subtitle: 
+#+author: Charles Jackson : cbj170230
+#+date: Guangze Zu : gxz170001
+#+options: \n:t toc:nil num:nil tex:t latex:t
+#+latex_header: \setlength{\parindent}{0pt}
+#+latex_header: \documentclass[12pt]{article}
+#+latex_header: \usepackage[margin=0.75in]{geometry}
+*Introduction*
+The Pacman Capture the Flag (CTF) pits two programmed Pacmen against two other programmed pacmen. Each team has a territory in the arena which contains team labeled food pellets. Pacmen are vulnerable if they are in opponent territory. Each team is trying to bring more of the opponent's food pellets into their territory than the other team takes. 
+
+Our approach was to create an attack pacman that would pick up several enemy pellets before returning back to home territory, then repeat. We also made a defend pacman that would mostly stay in the home territory and track down any enemy pacmen that entered our territory and eat them.
+
+*Theoretical Foundation*
+Our pacmen agents use A star search to find the path to where they are going. The A star algorithm will avoid walls, and we have a modified A star search that will also avoid enemies that is mainly used for the attack pacman.
+
+In order to figure out where to go our agents use spacial awareness and enemy tracking. We know where food is, where walls are, and we have an estimate where the enemies are. Combining that estimate with knowing the exact starting location. We can have a very accurate position of where the enemies are as well as a history of where they have been.
+
+*Agent Description*
+We decided to program a separate attack and defend agent. We chose this because we thought it would be best to always be chasing enemy pellets because that is how to win, as well as to always be preventing the enemy from getting pellets because that is how to keep the enemy from winning. We considered having more flexible agents that could both attack and defend, but it was too risky because there was the possibility that, at some point in time, there would be no one attacking or no one defending.
+
+*Attack Agent*
+
+
+*Defend Agent*
+The defend agent has several modes: tracking down enemies in the home territory, chasing vulnerable enemies in the enemy territory, running back home from enemy territory, and being vulnerable in home territory.
+
+For tracking down enemies in the home territory, the agent finds the closest enemy (using enemy tracking described in theory section) and uses A star (enemy targeting version) to get to eat the intruder as quick as possible; otherwise just get as close to the closest enemy without leaving home territory.
+
+For chasing vulnerable enemies in enemy territory, the agent will find the closest vulnerable enemy and, if there is no enemy in home territory, leave home territory to eat the vulnerable ghost using the enemy tracking A star to find the shortest path.
+
+For running back home from enemy territory, the agent find the shortest path to the closest food pellet that is in the home territory. Along the way if an enemy food pellets is within one space, the agent will pick it up to bring back for up to 4 food pellets.
+
+While the agent is vulnerable in the home territory, it will still chase the closest enemy agent but will stay at least 5 spaces away to ensure safety. 
+
+
+*Observations*
+Like almost every capture the flag game, Pacman CTF has the problem of then enemies getting stuck with each other at the boarder of the two territories. This happens because 
+
+*Recommendations and Conclusion*

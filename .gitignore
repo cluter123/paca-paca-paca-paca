@@ -4,7 +4,7 @@
 *.css
 *.pyc
 *.txt
-
+*.tex
 score
 
 .vscode/
