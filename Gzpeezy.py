@@ -24,7 +24,7 @@ from util import nearestPoint
 # Team creation #
 #################
 def createTeam(firstIndex, secondIndex, isRed,
-               second = 'AttackAgent', first = 'DefendAgent'):
+               first = 'AttackAgent', second = 'DefendAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
@@ -39,7 +39,11 @@ def createTeam(firstIndex, secondIndex, isRed,
   any extra arguments, so you should make sure that the default
   behavior is what you want for the nightly contest.
   """
-
+  if random.random() > .5:
+    swap = first
+    first = second
+    second = swap
+  
   # The following line is an example only; feel free to change it.
   return [eval(first)(firstIndex), eval(second)(secondIndex)]
 
@@ -477,7 +481,7 @@ This version of A* ignores enemies, so we can eat them >:)"""
 ###################
 ## Defend Agent  ##
 ###################
-class DefendAgent(DefaultAgent, object):
+class DefendAgent(AttackAgent, object):
   """Gets as close to the closest enemy without leaving the home field"""
 
   def aStarSearch(self, food, gameState, heuristic=manhattanDistance):
