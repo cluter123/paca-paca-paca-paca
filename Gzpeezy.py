@@ -261,7 +261,7 @@ class DefaultAgent(CaptureAgent):
   def onBorder(self, gameState, pos):
     column = gameState.getWalls().width / 2
     if self.red:
-      if pos[0] == (column - 1):
+      if pos[0] == column - 1:
         return True
     else:
       if pos[0] == column:
@@ -286,7 +286,8 @@ class DefaultAgent(CaptureAgent):
           for action in tmp: # push all non expanded nodes into priority queue
             successorState = state.generateSuccessor(self.index, action)
             if successorState.getAgentPosition(self.index) not in expanded:
-              enemyPos = [successorState.getAgentState(index).getPosition() for index in self.getOpponents(successorState)]
+              #enemyPos = [successorState.getAgentState(index).getPosition() for index in self.getOpponents(successorState)]
+              enemyPos = [self.enemyPositions[index][-1] for index in self.getOpponents(successorState)]
               if successorState.getAgentPosition(self.index) not in enemyPos:
                 pq.push((successorState, directions + [action]), self.getMazeDistance(gameState.getAgentPosition(self.index), successorState.getAgentPosition(self.index)) + heuristic(successorState.getAgentPosition(self.index), food))
     return [] #return empty if no goal node found
@@ -326,12 +327,15 @@ class AttackAgent(DefaultAgent, object):
       closestDotPos, closestDotDist = self.getClosestDot(gameState, None)
 
       if len(self.prevLocations) > 11:
-       for x in range (len(self.prevLocations) - 10, len(self.prevLocations)):
-         tmpNum = 0
-         if self.onBorder(gameState, self.prevLocations[x]):
-           tmpNum = tmpNum + 1
-         if tmpNum > 3:
-           closestDotPos, closestDotDist = self.getFarthestDot(gameState)
+        print self.prevLocations
+        tmpNum = 0
+        for x in self.prevLocations[-10:]:
+          if self.onBorder(gameState, x):
+            tmpNum = tmpNum + 1
+        if tmpNum > 3:
+          print "getting farthest dot"
+          print
+          closestDotPos, closestDotDist = self.getFarthestDot(gameState)
 
       closestCapsule = self.getClosestCapsule(gameState)
 
@@ -339,7 +343,7 @@ class AttackAgent(DefaultAgent, object):
         action = self.aStarSearch(closestDotPos, gameState)
       else:
         closestCap, capsDist = closestCapsule
-        if closestDotDist < capsDist and closestDotDist != self.getFarthestDot(gameState)[1]:
+        if closestDotDist < capsDist or closestDotDist != self.getFarthestDot(gameState)[1]:
           action = self.aStarSearch(closestDotPos, gameState)
         else:
           if any(scaredTimers[ghost] < 3 for x in self.enemyPositions.keys()):
@@ -352,7 +356,7 @@ class AttackAgent(DefaultAgent, object):
       if any(scaredTimers[ghost] > 0 for x in self.enemyPositions.keys()):
         for ghost, locations in self.enemyPositions.items():
           if not self.isInHome(gameState, locations[-1]) and scaredTimers[ghost] > 0 and self.getMazeDistance(pos, locations[-1]) < 6:
-            action = self.aStarSearch(gameState.getAgentPosition(ghost), gameState)
+            action = self.aStarDefSearch(gameState.getAgentPosition(ghost), gameState)
     
     if self.isInHome(gameState, gameState.getAgentPosition(self.index)):
       closestEnemy, closestEnemyDist = self.getClosestEnemyDistAndPos(gameState.getAgentPosition(self.index))
@@ -376,6 +380,7 @@ class AttackAgent(DefaultAgent, object):
     
     self.prevMoves.append(action[0])
     self.prevLocations.append(gameState.getAgentPosition(self.index))
+    #print self.onBorder(gameState, gameState.getAgentPosition(self.index))
     return action[0]
 
   def getClosestEnemyDist(self, pos):
@@ -475,9 +480,9 @@ This version of A* ignores enemies, so we can eat them >:)"""
             return directions + [action]
           successorState = state.generateSuccessor(self.index, action)
           if successorState.getAgentPosition(self.index) not in expanded:
-            pq.push((successorState, directions + [action]), heuristic(successorState.getAgentPosition(self.index), food))
-    return []                   # return empty if no goal node found  
-
+            pq.push((successorState, directions + [action]), self.getMazeDistance(gameState.getAgentPosition(self.index), successorState.getAgentPosition(self.index)) + heuristic(successorState.getAgentPosition(self.index), food))
+    return []                   # return empty if no goal node found
+    
 ###################
 ## Defend Agent  ##
 ###################
@@ -503,7 +508,7 @@ This version of A* ignores enemies, so we can eat them >:)"""
             return directions + [action]
           successorState = state.generateSuccessor(self.index, action)
           if successorState.getAgentPosition(self.index) not in expanded:
-            pq.push((successorState, directions + [action]), heuristic(successorState.getAgentPosition(self.index), food))
+            pq.push((successorState, directions + [action]), self.getMazeDistance(gameState.getAgentPosition(self.index), successorState.getAgentPosition(self.index)) + heuristic(successorState.getAgentPosition(self.index), food))
     return []                   # return empty if no goal node found
   
   def chooseAction(self, gameState):
