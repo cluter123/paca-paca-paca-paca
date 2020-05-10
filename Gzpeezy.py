@@ -24,7 +24,7 @@ from util import nearestPoint
 # Team creation #
 #################
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'AttackAgent', second = 'DefendAgent'):
+               second = 'AttackAgent', first = 'DefendAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
@@ -39,11 +39,7 @@ def createTeam(firstIndex, secondIndex, isRed,
   any extra arguments, so you should make sure that the default
   behavior is what you want for the nightly contest.
   """
-  if random.random() > .5:
-    swap = first
-    first = second
-    second = swap
-  
+
   # The following line is an example only; feel free to change it.
   return [eval(first)(firstIndex), eval(second)(secondIndex)]
 
@@ -321,20 +317,19 @@ class AttackAgent(DefaultAgent, object):
     pos = gameState.getAgentPosition(self.index)
 
     action = None
-    if self.evalBack(gameState):
+    if self.evalBack(gameState, scaredTimers):
       action = self.aStarSearch(self.getClosestHomeDot(gameState), gameState)
     else:
       closestDotPos, closestDotDist = self.getClosestDot(gameState, None)
 
       if len(self.prevLocations) > 11:
-        print self.prevLocations
         tmpNum = 0
         for x in self.prevLocations[-10:]:
           if self.onBorder(gameState, x):
             tmpNum = tmpNum + 1
         if tmpNum > 3:
-          print "getting farthest dot"
-          print
+          #print "getting farthest dot"
+          #print
           closestDotPos, closestDotDist = self.getFarthestDot(gameState)
 
       closestCapsule = self.getClosestCapsule(gameState)
@@ -343,17 +338,17 @@ class AttackAgent(DefaultAgent, object):
         action = self.aStarSearch(closestDotPos, gameState)
       else:
         closestCap, capsDist = closestCapsule
-        if closestDotDist < capsDist or closestDotDist != self.getFarthestDot(gameState)[1]:
+        if closestDotDist < capsDist or closestDotDist == self.getFarthestDot(gameState)[1]:
           action = self.aStarSearch(closestDotPos, gameState)
         else:
-          if any(scaredTimers[ghost] < 3 for x in self.enemyPositions.keys()):
+          if any(scaredTimers[x] < 3 for x in self.enemyPositions.keys()):
             action = self.aStarSearch(closestCap, gameState)
           else:
             action = self.aStarSearch(closestDotPos, gameState)
     
     if gameState.getAgentState(self.index).numCarrying < self.maxPellets(gameState):
       ## attacks scared ghost
-      if any(scaredTimers[ghost] > 0 for x in self.enemyPositions.keys()):
+      if any(scaredTimers[x] > 0 for x in self.enemyPositions.keys()):
         for ghost, locations in self.enemyPositions.items():
           if not self.isInHome(gameState, locations[-1]) and scaredTimers[ghost] > 0 and self.getMazeDistance(pos, locations[-1]) < 6:
             action = self.aStarDefSearch(gameState.getAgentPosition(ghost), gameState)
@@ -441,16 +436,17 @@ class AttackAgent(DefaultAgent, object):
 
     return pq.pop()
 
-  def evalBack(self, gameState):
-    if gameState.getAgentState(self.index).numCarrying >= self.maxPellets(gameState):
+  def evalBack(self, gameState, scaredTimers):
+    if gameState.getAgentState(self.index).numCarrying >= self.maxPellets(gameState) and all(scaredTimers[x] <  2 for x in self.enemyPositions.keys()):
       return True
 
     if len(self.getFood(gameState).asList()) <= 2:
       return True
 
-    for ghost, locations in self.enemyPositions.items():
-      if not self.isInHome(gameState, locations[-1]) and self.getMazeDistance(gameState.getAgentPosition(self.index), locations[-1]) < 5:
-        return True
+    if all(scaredTimers[x] <  2 for x in self.enemyPositions.keys()):
+      for ghost, locations in self.enemyPositions.items():
+        if not self.isInHome(gameState, gameState.getAgentPosition(ghost)) and self.getMazeDistance(gameState.getAgentPosition(self.index), locations[-1]) < 4:
+          return True
     
     return False
 
@@ -486,7 +482,7 @@ This version of A* ignores enemies, so we can eat them >:)"""
 ###################
 ## Defend Agent  ##
 ###################
-class DefendAgent(AttackAgent, object):
+class DefendAgent(DefaultAgent, object):
   """Gets as close to the closest enemy without leaving the home field"""
 
   def aStarSearch(self, food, gameState, heuristic=manhattanDistance):
