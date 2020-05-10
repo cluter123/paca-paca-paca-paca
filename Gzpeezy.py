@@ -148,7 +148,9 @@ class DefaultAgent(CaptureAgent):
     return random.choice(actions)
 
   def updateEnemyPositions(self):
-    """"""
+    """
+    predicts the enemy position, only executes one per turn
+    """
     DefaultAgent.turnCount += 1
     currentObservation = self.getCurrentObservation()
     for index, history in DefaultAgent.enemyPositions.items():
@@ -182,6 +184,7 @@ class DefaultAgent(CaptureAgent):
       return (twopos, enemies[1], onepos, enemies[0])
   
   def getClosestHomeDot(self, gameState):
+    """ finds the closest space in home territory"""
     pq = PriorityQueue()
     column = gameState.getWalls().width / 2
     height = gameState.getWalls().height
@@ -194,6 +197,7 @@ class DefaultAgent(CaptureAgent):
     return pq.pop()
 
   def isInHome(self, gameState, pos):
+    """ checks if pos is in our side of base """
     column = gameState.getWalls().width / 2
     if self.red:
       if pos[0] < column:
@@ -204,6 +208,7 @@ class DefaultAgent(CaptureAgent):
     return False
 
   def onBorder(self, gameState, pos):
+    """ checks if pos is on the border of our side """
     column = gameState.getWalls().width / 2
     if self.red:
       if pos[0] == column - 1:
@@ -259,17 +264,21 @@ class AttackAgent(DefaultAgent, object):
     else:
       DefaultAgent.turnCount += 1
 
+    # calculates scared timers
     scaredTimers = {}
     for ghost in self.enemyPositions.keys():
       scaredTimers[ghost] = gameState.getAgentState(ghost).scaredTimer
     pos = gameState.getAgentPosition(self.index)
 
+    # decides to head back to home base
     action = None
     if self.evalBack(gameState, scaredTimers):
       action = self.aStarSearch(self.getClosestHomeDot(gameState), gameState)
     else:
+      # else finds closest dot and capsule
       closestDotPos, closestDotDist = self.getClosestDot(gameState)
 
+      # checks if we're stuck on border
       if len(self.prevLocations) > 11:
         tmpNum = 0
         for x in self.prevLocations[-10:]:
@@ -277,12 +286,14 @@ class AttackAgent(DefaultAgent, object):
             tmpNum = tmpNum + 1
         if tmpNum > 3:
           closestDotPos, closestDotDist = self.getFarthestDot(gameState)
-
+    
       closestCapsule = self.getClosestCapsule(gameState)
 
+      # chase closest dot if no capsules left
       if closestCapsule is None:
         action = self.aStarSearch(closestDotPos, gameState)
       else:
+        # chase the closest dot or capsule
         closestCap, capsDist = closestCapsule
         if closestDotDist < capsDist or closestDotDist == self.getFarthestDot(gameState)[1]:
           action = self.aStarSearch(closestDotPos, gameState)
@@ -299,12 +310,15 @@ class AttackAgent(DefaultAgent, object):
           if not self.isInHome(gameState, locations[-1]) and scaredTimers[ghost] > 0 and self.getMazeDistance(pos, locations[-1]) < 6:
             action = self.aStarDefSearch(gameState.getAgentPosition(ghost), gameState)
     
+    # attacks enemy pacman in home territory
     if self.isInHome(gameState, gameState.getAgentPosition(self.index)):
       closestEnemy, closestEnemyDist = self.getClosestEnemyDistAndPos(gameState.getAgentPosition(self.index))
       if self.isInHome(gameState, closestEnemy) and closestEnemyDist < 3:
         action = self.aStarDefSearch(closestEnemy, gameState)
-      
+    
+    # accounts for A* failing
     if action == None or len(action) == 0:
+      # attempts to avoid stalemate
       if len(self.prevMoves) > 10 and all(self.prevMoves[x] == 'Stop' for x in range(len(self.prevMoves) - 5, len(self.prevMoves) - 2)):
         actions = gameState.getLegalActions(self.index)
         if self.index % 2 == 0:
@@ -317,6 +331,7 @@ class AttackAgent(DefaultAgent, object):
           return 'Stop'
         return random.choice(actions)
 
+      # if A* returns nothing, we will try pathing to a random dot
       tries = 0
       while (action == None or len(action) == 0) and tries < 5:
         action = self.aStarSearch(random.choice(self.getFood(gameState).asList()), gameState)
@@ -326,6 +341,7 @@ class AttackAgent(DefaultAgent, object):
           action = filter(lambda a: a != 'West', action)
         tries = tries + 1
 
+      # else we just stop
       if action == None or len(action) == 0:
         self.prevMoves.append('Stop')
         return 'Stop'
@@ -335,6 +351,7 @@ class AttackAgent(DefaultAgent, object):
     return action[0]
 
   def getClosestEnemyDist(self, pos):
+    """ finds closest enemy's distance """
     minEnemy = None
     mindist = 9999
     for index in DefaultAgent.enemyPositions.keys():
@@ -346,6 +363,7 @@ class AttackAgent(DefaultAgent, object):
     return mindist
 
   def getClosestEnemyDistAndPos(self, pos):
+    """ finds closest enemy's distance and position (we got lazy)"""
     minEnemy = None
     mindist = 9999
     for index in DefaultAgent.enemyPositions.keys():
@@ -357,6 +375,7 @@ class AttackAgent(DefaultAgent, object):
     return (minEnemy, mindist)
 
   def getClosestDot(self, gameState):
+    """ find closest pellet pos and dist """
     pq = PriorityQueue()
     foodList = self.getFood(gameState).asList()
     for food in foodList:
@@ -365,6 +384,7 @@ class AttackAgent(DefaultAgent, object):
     return pq.pop()
 
   def getFarthestDot(self, gameState):
+    """ find farthest pellet pos and dist """
     pq = PriorityQueue()
     foodList = self.getFood(gameState).asList()
     for food in foodList:
@@ -373,6 +393,7 @@ class AttackAgent(DefaultAgent, object):
     return pq.pop()
 
   def getClosestCapsule(self, gameState):
+    """ find closest capsule pos and dist """
     pq = PriorityQueue()
     red = (self.index % 2) == 0
     capsules = None
@@ -390,6 +411,7 @@ class AttackAgent(DefaultAgent, object):
     return pq.pop()
 
   def evalBack(self, gameState, scaredTimers):
+    """ determines if we are heading back to base """
     if gameState.getAgentState(self.index).numCarrying >= self.maxPellets(gameState) and all(scaredTimers[x] <  10 for x in self.enemyPositions.keys()):
       return True
 
@@ -404,6 +426,7 @@ class AttackAgent(DefaultAgent, object):
     return False
 
   def maxPellets(self, gameState):
+    """ dynamic determining # of pellets before heading back """
     defaultMax = 4
     closestEnemy = self.getClosestEnemyDist(gameState.getAgentPosition(self.index))
     if(closestEnemy > 10):
@@ -412,7 +435,7 @@ class AttackAgent(DefaultAgent, object):
 
   def aStarDefSearch(self, food, gameState, heuristic=manhattanDistance):
     """Search the node that has the lowest combined cost and heuristic first.
-This version of A* ignores enemies, so we can eat them >:)"""
+        This version of A* ignores enemies, so we can eat them >:)"""
     pq = PriorityQueue() # Priority Queue
     expanded = [] # list of explored nodes
     startState = (gameState, [])
