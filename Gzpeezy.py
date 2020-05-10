@@ -1,4 +1,4 @@
-# myTeam.py
+# Gzpeezy.py
 # ---------
 # Licensing Information:  You are free to use or extend these projects for
 # educational purposes provided that (1) you do not distribute or publish
@@ -15,9 +15,10 @@ from captureAgents import CaptureAgent
 import random, time, util
 from game import Directions
 import game
+import distanceCalculator
+
 from util import PriorityQueue
 from util import manhattanDistance
-import distanceCalculator
 from util import nearestPoint
 
 #################
@@ -144,62 +145,7 @@ class DefaultAgent(CaptureAgent):
   
     actions = gameState.getLegalActions(self.index)
 
-    values = [self.evaluate(gameState, a) for a in actions]
-    
-    maxValue = max(values)
-    bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-
-    foodLeft = len(self.getFood(gameState).asList())
-
-    if foodLeft <= 2:
-      bestDist = 9999
-      for action in actions:
-        successor = self.getSuccessor(gameState, action)
-        pos2 = successor.getAgentPosition(self.index)
-        dist = self.getMazeDistance(self.start,pos2)
-        if dist < bestDist:
-          bestAction = action
-          bestDist = dist
-      return bestAction
-
-    return random.choice(bestActions)
-  
-  
-  def getSuccessor(self, gameState, action):
-    """
-    Finds the next successor which is a grid position (location tuple).
-    """
-    successor = gameState.generateSuccessor(self.index, action)
-    pos = successor.getAgentState(self.index).getPosition()
-    if pos != nearestPoint(pos):
-      # Only half a grid position was covered
-      return successor.generateSuccessor(self.index, action)
-    else:
-      return successor
-
-  def evaluate(self, gameState, action):
-    """
-    Computes a linear combination of features and feature weights
-    """
-    features = self.getFeatures(gameState, action)
-    weights = self.getWeights(gameState, action)
-    return features * weights
-
-  def getFeatures(self, gameState, action):
-    """
-    Returns a counter of features for the state
-    """
-    features = util.Counter()
-    successor = self.getSuccessor(gameState, action)
-    features['successorScore'] = self.getScore(successor)
-    return features
-
-  def getWeights(self, gameState, action):
-    """
-    Normally, weights do not depend on the gamestate.  They can be either
-    a counter or a dictionary.
-    """
-    return {'successorScore': 1.0}
+    return random.choice(actions)
 
   def updateEnemyPositions(self):
     """"""
@@ -247,7 +193,6 @@ class DefaultAgent(CaptureAgent):
         pq.push((column, y), self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), (column, y)))
     return pq.pop()
 
-
   def isInHome(self, gameState, pos):
     column = gameState.getWalls().width / 2
     if self.red:
@@ -273,7 +218,7 @@ class DefaultAgent(CaptureAgent):
     pq = PriorityQueue() # Priority Queue
     expanded = [] # list of explored nodes
     startState = (gameState, [])
-    pq.push(startState, heuristic(startState[0].getAgentPosition(self.index), food)) # stores states as tuple of (state, direction), initial node based on heuristic
+    pq.push(startState, heuristic(gameState.getAgentPosition(self.index), food)) # stores states as tuple of (state, direction), initial node based on heuristic
     while not pq.isEmpty():
       state, directions = pq.pop() # gets state and direction
       position = state.getAgentPosition(self.index)
@@ -305,7 +250,6 @@ class AttackAgent(DefaultAgent, object):
     self.prevMoves = []
     self.prevLocations = []
 
-
   def chooseAction(self, gameState):
     """
     Picks among the actions with the highest Q(s,a).
@@ -324,7 +268,7 @@ class AttackAgent(DefaultAgent, object):
     if self.evalBack(gameState, scaredTimers):
       action = self.aStarSearch(self.getClosestHomeDot(gameState), gameState)
     else:
-      closestDotPos, closestDotDist = self.getClosestDot(gameState, None)
+      closestDotPos, closestDotDist = self.getClosestDot(gameState)
 
       if len(self.prevLocations) > 11:
         tmpNum = 0
@@ -332,8 +276,6 @@ class AttackAgent(DefaultAgent, object):
           if self.onBorder(gameState, x):
             tmpNum = tmpNum + 1
         if tmpNum > 3:
-          #print "getting farthest dot"
-          #print
           closestDotPos, closestDotDist = self.getFarthestDot(gameState)
 
       closestCapsule = self.getClosestCapsule(gameState)
@@ -374,12 +316,22 @@ class AttackAgent(DefaultAgent, object):
         if len(actions) == 0:
           return 'Stop'
         return random.choice(actions)
-      self.prevMoves.append('Stop')
-      return 'Stop'
+
+      tries = 0
+      while (action == None or len(action) == 0) and tries < 5:
+        action = self.aStarSearch(random.choice(self.getFood(gameState).asList()), gameState)
+        if self.index % 2 == 0:
+          action = filter(lambda a: a != 'East', action)
+        else:
+          action = filter(lambda a: a != 'West', action)
+        tries = tries + 1
+
+      if action == None or len(action) == 0:
+        self.prevMoves.append('Stop')
+        return 'Stop'
     
     self.prevMoves.append(action[0])
     self.prevLocations.append(gameState.getAgentPosition(self.index))
-    #print self.onBorder(gameState, gameState.getAgentPosition(self.index))
     return action[0]
 
   def getClosestEnemyDist(self, pos):
@@ -404,15 +356,12 @@ class AttackAgent(DefaultAgent, object):
         mindist = enemydist
     return (minEnemy, mindist)
 
-  def getClosestDot(self, gameState, takeOut):
+  def getClosestDot(self, gameState):
     pq = PriorityQueue()
     foodList = self.getFood(gameState).asList()
-    if takeOut is None:
-      takeOut = self.start
     for food in foodList:
-      if takeOut not in foodList:
-        dist = self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), food)
-        pq.push((food, dist), dist)
+      dist = self.getMazeDistance(gameState.getAgentState(self.index).getPosition(), food)
+      pq.push((food, dist), dist)
     return pq.pop()
 
   def getFarthestDot(self, gameState):
@@ -441,7 +390,7 @@ class AttackAgent(DefaultAgent, object):
     return pq.pop()
 
   def evalBack(self, gameState, scaredTimers):
-    if gameState.getAgentState(self.index).numCarrying >= self.maxPellets(gameState) and all(scaredTimers[x] <  5 for x in self.enemyPositions.keys()):
+    if gameState.getAgentState(self.index).numCarrying >= self.maxPellets(gameState) and all(scaredTimers[x] <  10 for x in self.enemyPositions.keys()):
       return True
 
     if len(self.getFood(gameState).asList()) <= 2:
@@ -449,7 +398,7 @@ class AttackAgent(DefaultAgent, object):
 
     if all(scaredTimers[x] < 5 for x in self.enemyPositions.keys()):
       for ghost, locations in self.enemyPositions.items():
-        if not self.isInHome(gameState, gameState.getAgentPosition(ghost)) and self.getMazeDistance(gameState.getAgentPosition(self.index), locations[-1]) < 4:
+        if not self.isInHome(gameState, gameState.getAgentPosition(ghost)) and self.getMazeDistance(gameState.getAgentPosition(self.index), locations[-1]) < 5:
           return True
     
     return False

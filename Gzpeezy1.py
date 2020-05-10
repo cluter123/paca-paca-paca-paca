@@ -20,11 +20,13 @@ from util import manhattanDistance
 import distanceCalculator
 from util import nearestPoint
 
+from baselineTeam import OffensiveReflexAgent
+
 #################
 # Team creation #
 #################
 def createTeam(firstIndex, secondIndex, isRed,
-               second = 'DefendAgent', first = 'DummyAgent'):
+               second = 'DefendAgent', first = 'OffensiveReflexAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
