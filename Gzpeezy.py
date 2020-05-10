@@ -352,7 +352,7 @@ class AttackAgent(DefaultAgent, object):
     
     if gameState.getAgentState(self.index).numCarrying < self.maxPellets(gameState):
       ## attacks scared ghost
-      if any(scaredTimers[x] > 0 for x in self.enemyPositions.keys()):
+      if any(scaredTimers[x] > 4 for x in self.enemyPositions.keys()):
         for ghost, locations in self.enemyPositions.items():
           if not self.isInHome(gameState, locations[-1]) and scaredTimers[ghost] > 0 and self.getMazeDistance(pos, locations[-1]) < 6:
             action = self.aStarDefSearch(gameState.getAgentPosition(ghost), gameState)
@@ -441,13 +441,13 @@ class AttackAgent(DefaultAgent, object):
     return pq.pop()
 
   def evalBack(self, gameState, scaredTimers):
-    if gameState.getAgentState(self.index).numCarrying >= self.maxPellets(gameState) and all(scaredTimers[x] <  2 for x in self.enemyPositions.keys()):
+    if gameState.getAgentState(self.index).numCarrying >= self.maxPellets(gameState) and all(scaredTimers[x] <  5 for x in self.enemyPositions.keys()):
       return True
 
     if len(self.getFood(gameState).asList()) <= 2:
       return True
 
-    if all(scaredTimers[x] <  2 for x in self.enemyPositions.keys()):
+    if all(scaredTimers[x] < 5 for x in self.enemyPositions.keys()):
       for ghost, locations in self.enemyPositions.items():
         if not self.isInHome(gameState, gameState.getAgentPosition(ghost)) and self.getMazeDistance(gameState.getAgentPosition(self.index), locations[-1]) < 4:
           return True
