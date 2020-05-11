@@ -336,9 +336,11 @@ class AttackAgent(DefaultAgent, object):
       while (action == None or len(action) == 0) and tries < 5:
         action = self.aStarSearch(random.choice(self.getFood(gameState).asList()), gameState)
         if self.index % 2 == 0:
-          action = filter(lambda a: a != 'East', action)
+          if action != None and len(action) > 0 and action[0] == 'East':
+            action = None
         else:
-          action = filter(lambda a: a != 'West', action)
+          if action != None and len(action) > 0 and action[0] == 'West':
+            action = None
         tries = tries + 1
 
       # else we just stop
@@ -431,11 +433,14 @@ class AttackAgent(DefaultAgent, object):
     closestEnemy = self.getClosestEnemyDist(gameState.getAgentPosition(self.index))
     if(closestEnemy > 10):
       defaultMax += closestEnemy - 10
+
+    if defaultMax >= 10:
+      defaultMax = 10
     return defaultMax
 
   def aStarDefSearch(self, food, gameState, heuristic=manhattanDistance):
     """Search the node that has the lowest combined cost and heuristic first.
-        This version of A* ignores enemies, so we can eat them >:)"""
+This version of A* ignores enemies, so we can eat them >:)"""
     pq = PriorityQueue() # Priority Queue
     expanded = [] # list of explored nodes
     startState = (gameState, [])
